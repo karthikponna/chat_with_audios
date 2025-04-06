@@ -121,14 +121,19 @@ if prompt := st.chat_input("Ask about the audio conversation..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
+    # Build conversation history from session state messages
+    conversation_history = "\n".join(
+        f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages
+    )
+
     # Display assistant response in chat message container
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         full_response = ""
         
-        # Get streaming response
-        streaming_response = query_engine.query(prompt)
-        
+        streaming_response = query_engine.query(prompt, conversation_history=conversation_history)
+
+
         for chunk in streaming_response:
             try:
                 new_text = chunk.raw["choices"][0]["delta"]["content"]
