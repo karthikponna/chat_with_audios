@@ -1,10 +1,9 @@
-# Adapted from https://docs.streamlit.io/knowledge-base/tutorials/build-conversational-apps#build-a-simple-chatbot-gui-with-streaming
-
 import os
 import gc
 import uuid
 import tempfile
 import base64
+import re
 from dotenv import load_dotenv
 from rag_code import Transcribe, EmbedData, QdrantVDB_QB, Retriever, RAG
 import streamlit as st
@@ -14,7 +13,7 @@ if "id" not in st.session_state:
     st.session_state.file_cache = {}
 
 session_id = st.session_state.id
-collection_name = "chat with audios"
+collection_name = "chat with audios SBL"
 batch_size = 32
 
 load_dotenv()
@@ -60,6 +59,7 @@ with st.sidebar:
                                           batch_size=batch_size,
                                           vector_dim=1024)
                     qdrant_vdb.define_client()
+                    qdrant_vdb.clear_collection()
                     qdrant_vdb.create_collection()
                     qdrant_vdb.ingest_data(embeddata=embeddata)
 
@@ -67,7 +67,7 @@ with st.sidebar:
                     retriever = Retriever(vector_db=qdrant_vdb, embeddata=embeddata)
 
                     # set up rag
-                    query_engine = RAG(retriever=retriever, llm_name="DeepSeek-R1-Distill-Llama-70B")
+                    query_engine = RAG(retriever=retriever, llm_name="QwQ-32B")
                     st.session_state.file_cache[file_key] = query_engine
                 else:
                     query_engine = st.session_state.file_cache[file_key]
@@ -128,11 +128,14 @@ if prompt := st.chat_input("Ask about the audio conversation..."):
             try:
                 new_text = chunk.raw["choices"][0]["delta"]["content"]
                 full_response += new_text
-                message_placeholder.markdown(full_response + "▌")
-            except:
+                # Remove any chain-of-thought markers before displaying
+                display_text = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL)
+                message_placeholder.markdown(display_text + "▌")
+            except Exception:
                 pass
 
-        message_placeholder.markdown(full_response)
+        final_response = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+        message_placeholder.markdown(final_response)
 
-    # Add assistant response to chat history
+    # Add assistant response to chat history without any chain-of-thought filtering
     st.session_state.messages.append({"role": "assistant", "content": full_response})
