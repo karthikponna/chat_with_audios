@@ -102,6 +102,11 @@ with col2:
 # Initialize chat history
 if "messages" not in st.session_state:
     reset_chat()
+    # Add Ayush's initial message
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": "Hey, I am Ayush, Would you be available for a quick chat!"
+    })
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:

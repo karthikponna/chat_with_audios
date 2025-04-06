@@ -35,7 +35,6 @@ class EmbedData:
     Returns:
          None
     """
-
     def __init__(self, embed_model_name="BAAI/bge-large-en-v1.5", batch_size=32, chunk_size=200):
         self.embed_model_name = embed_model_name
         self.embed_model = self._load_embed_model()
@@ -123,23 +122,34 @@ class QdrantVDB_QB:
         """
         Define and initialize the Qdrant client.
         
+        Args:
+             None
+        Returns:
+             None
         """
         self.client = QdrantClient(url="http://localhost:6333", prefer_grpc=True)
 
     def clear_collection(self):
         """
         Clear the collection if it exists.
+        
+        Args:
+             None
+        Returns:
+             None
         """
-
-        # Delete the collection if it exists
         if self.client.collection_exists(collection_name=self.collection_name):
             self.client.delete_collection(collection_name=self.collection_name)
 
     def create_collection(self):
         """
         Create a new collection in Qdrant if it doesn't exist.
+        
+        Args:
+             None
+        Returns:
+             None
         """
-        # Create the collection if it doesn't exist
         if not self.client.collection_exists(collection_name=self.collection_name):
             self.client.create_collection(
                 collection_name=self.collection_name,
@@ -190,7 +200,6 @@ class Retriever:
     Returns:
          None
     """
-
     def __init__(self, vector_db, embeddata):
         self.vector_db = vector_db
         self.embeddata = embeddata
@@ -229,12 +238,10 @@ class RAG:
     Returns:
          None
     """
-
     def __init__(self,
                  retriever,
                  llm_name="Meta-Llama-3.1-405B-Instruct"
                  ):
-        
         system_msg = ChatMessage(
             role=MessageRole.SYSTEM,
             content=(
@@ -247,7 +254,7 @@ class RAG:
                 "If a user asks for a purchase link, always respond with: 'You can check out the book available at Amazon.' "
                 "Avoid starting responses with casual greetings like 'Hey!' except in the very first interaction. "
                 "Use Chain-of-Thought reasoning to identify the user's intent and filter out unnecessary details before responding. "
-                "Do not reveal any internal chain-of-thought or reasoning in your final responses."
+                "Do not reveal any internal chain-of-thought or reasoning in your final responses. "
                 "Keep your final answer within 50 characters."
             ),
         )
@@ -255,15 +262,21 @@ class RAG:
         self.llm_name = llm_name
         self.llm = self._setup_llm()
         self.retriever = retriever
+        # Updated QA prompt to include conversation history
         self.qa_prompt_tmpl_str = (
             "Below is context retrieved from our database with specific details about the book. "
-            "Use this context directly to answer the user's query. "
-            "Answer strictly based on the context and your inferences, and do not add any extra details beyond what is given. "
+            "Below is the conversation history so far: {conversation_history}\n\n"
+            "Use both the context and the conversation history to answer the user's query. "
+            "Answer strictly based on the context, conversation history, and your inferences, and do not add any extra details. "
             "Keep the tone friendly, direct, and casual, like chatting on WhatsApp. "
             "Do not include any pricing, discount, sales information, or coupon codes unless the user explicitly asks about them.\n\n"
             "Context information:\n"
             "---------------------\n"
             "{context}\n"
+            "---------------------\n\n"
+            "Conversation History:\n"
+            "---------------------\n"
+            "{conversation_history}\n"
             "---------------------\n\n"
             "Query: {query}\n"
             "Answer: "
@@ -306,17 +319,22 @@ class RAG:
             combined_prompt.append(doc["payload"]["context"])
         return "\n\n---\n\n".join(combined_prompt)
 
-    def query(self, query):
+    def query(self, query, conversation_history=""):
         """
-        Formulate the query using context and return a streaming LLM response.
+        Formulate the query using context and conversation history, then return a streaming LLM response.
         
         Args:
              query (str): The user's query.
+             conversation_history (str): The conversation history to include.
         Returns:
              Streaming response: The LLM's response stream.
         """
         context = self.generate_context(query=query)
-        prompt = self.qa_prompt_tmpl_str.format(context=context, query=query)
+        prompt = self.qa_prompt_tmpl_str.format(
+            context=context,
+            query=query,
+            conversation_history=conversation_history
+        )
         user_msg = ChatMessage(role=MessageRole.USER, content=prompt)
         streaming_response = self.llm.stream_complete(user_msg.content)
         return streaming_response
@@ -340,10 +358,9 @@ class Transcribe:
         Transcribe an audio file and return speaker-labeled transcripts.
         
         Args:
-            audio_path: Path to the audio file
-            
+             audio_path (str): Path to the audio file.
         Returns:
-            List of dictionaries containing speaker and text information
+             List[Dict[str, str]]: List of dictionaries containing speaker and text information.
         """
         # Configure transcription with speaker labels, expecting 1 speaker for a single-speaker audio
         config = aai.TranscriptionConfig(
