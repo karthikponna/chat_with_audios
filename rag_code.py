@@ -2,24 +2,23 @@ from qdrant_client import models
 from qdrant_client import QdrantClient
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.sambanovasystems import SambaNovaCloud
-from llama_index.llms.ollama import Ollama
+
+from file_handling import load_global_context
+
 import assemblyai as aai
 from typing import List, Dict
+import os
 
 from llama_index.core.base.llms.types import (
     ChatMessage,
     MessageRole,
 )
 
+
+        
 def batch_iterate(lst, batch_size):
     """
     Yield successive n-sized chunks from lst.
-    
-    Args:
-         lst (list): List of items to iterate over.
-         batch_size (int): Size of each batch.
-    Returns:
-         Generator: Yields successive chunks of the list.
     """
     for i in range(0, len(lst), batch_size):
         yield lst[i : i + batch_size]
@@ -27,13 +26,6 @@ def batch_iterate(lst, batch_size):
 class EmbedData:
     """
     Class for generating text embeddings using HuggingFaceEmbedding.
-    
-    Args:
-         embed_model_name (str): Name of the embedding model.
-         batch_size (int): Batch size for embedding.
-         chunk_size (int): Maximum number of characters per chunk.
-    Returns:
-         None
     """
     def __init__(self, embed_model_name="BAAI/bge-large-en-v1.5", batch_size=32, chunk_size=200):
         self.embed_model_name = embed_model_name
@@ -45,11 +37,6 @@ class EmbedData:
     def _load_embed_model(self):
         """
         Load the HuggingFace embedding model.
-        
-        Args:
-             None
-        Returns:
-             HuggingFaceEmbedding: Initialized embedding model.
         """
         embed_model = HuggingFaceEmbedding(
             model_name=self.embed_model_name, 
@@ -60,36 +47,20 @@ class EmbedData:
 
     def chunk_text(self, text: str) -> List[str]:
         """
-        Splits a long text into chunks of maximum self.chunk_size characters.
-        
-        Args:
-             text (str): The text to split.
-        Returns:
-             List[str]: List of text chunks.
+        Splits a long text into chunks.
         """
         return [text[i:i+self.chunk_size] for i in range(0, len(text), self.chunk_size)]
         
     def generate_embedding(self, contexts):
         """
         Generate embeddings for a batch of contexts.
-        
-        Args:
-             contexts (list): List of text contexts.
-        Returns:
-             List: Embeddings for the provided contexts.
         """
         return self.embed_model.get_text_embedding_batch(contexts)
         
     def embed(self, contexts: List[str]):
         """
-        Generate embeddings for contexts, chunking them if they exceed the chunk size.
-        
-        Args:
-             contexts (List[str]): List of text contexts.
-        Returns:
-             None
+        Process and embed contexts.
         """
-        # Create a new list to hold all (possibly chunked) contexts.
         all_contexts = []
         for context in contexts:
             if len(context) > self.chunk_size:
@@ -104,14 +75,7 @@ class EmbedData:
 
 class QdrantVDB_QB:
     """
-    Class to manage Qdrant vector database operations for ingestion and retrieval.
-    
-    Args:
-         collection_name (str): Name of the Qdrant collection.
-         vector_dim (int): Dimension of the vector embeddings.
-         batch_size (int): Batch size for operations.
-    Returns:
-         None
+    Class to manage Qdrant vector database operations.
     """
     def __init__(self, collection_name, vector_dim=768, batch_size=512):
         self.collection_name = collection_name
@@ -121,22 +85,12 @@ class QdrantVDB_QB:
     def define_client(self):
         """
         Define and initialize the Qdrant client.
-        
-        Args:
-             None
-        Returns:
-             None
         """
         self.client = QdrantClient(url="http://localhost:6333", prefer_grpc=True)
 
     def clear_collection(self):
         """
         Clear the collection if it exists.
-        
-        Args:
-             None
-        Returns:
-             None
         """
         if self.client.collection_exists(collection_name=self.collection_name):
             self.client.delete_collection(collection_name=self.collection_name)
@@ -144,11 +98,6 @@ class QdrantVDB_QB:
     def create_collection(self):
         """
         Create a new collection in Qdrant if it doesn't exist.
-        
-        Args:
-             None
-        Returns:
-             None
         """
         if not self.client.collection_exists(collection_name=self.collection_name):
             self.client.create_collection(
@@ -170,11 +119,6 @@ class QdrantVDB_QB:
     def ingest_data(self, embeddata):
         """
         Ingest embedding data into the Qdrant collection.
-        
-        Args:
-             embeddata (EmbedData): Instance containing contexts and their embeddings.
-        Returns:
-             None
         """
         for batch_context, batch_embeddings in zip(
             batch_iterate(embeddata.contexts, self.batch_size), 
@@ -192,13 +136,7 @@ class QdrantVDB_QB:
 
 class Retriever:
     """
-    Class to perform semantic search on a Qdrant vector database using embedded data.
-    
-    Args:
-         vector_db (QdrantVDB_QB): Qdrant vector database instance.
-         embeddata (EmbedData): Instance for generating text embeddings.
-    Returns:
-         None
+    Class to perform semantic search on a Qdrant vector database.
     """
     def __init__(self, vector_db, embeddata):
         self.vector_db = vector_db
@@ -207,11 +145,6 @@ class Retriever:
     def search(self, query):
         """
         Perform a semantic search using a query's embedding.
-        
-        Args:
-             query (str): The search query.
-        Returns:
-             List: Search results from the vector database.
         """
         query_embedding = self.embeddata.embed_model.get_query_embedding(query)
         result = self.vector_db.client.search(
@@ -227,114 +160,121 @@ class Retriever:
             timeout=1000,
         )
         return result
-    
+
+
 class RAG:
     """
-    Class to perform Retrieval-Augmented Generation by combining context retrieval with LLM responses.
-    
-    Args:
-         retriever (Retriever): Instance of Retriever for context retrieval.
-         llm_name (str): Name of the LLM to use.
-    Returns:
-         None
+    Class to perform Retrieval-Augmented Generation.
     """
     def __init__(self,
                  retriever,
-                 llm_name="Meta-Llama-3.1-405B-Instruct"
+                 llm_name="Meta-Llama-3.1-405B-Instruct",
                  ):
+        # System prompt for final answer generation
         system_msg = ChatMessage(
             role=MessageRole.SYSTEM,
             content=(
                 "You are Ayush, the author of the LLM Engineer Handbook. "
-                "You are friendly, authentic, and direct in your interactions, communicating casually like in a WhatsApp chat. "
-                "When a user refers to 'the book', assume they mean the LLM Engineer Handbook. "
-                "Provide a concise explanation of the book's purpose, content, and intended audience. "
-                "Do not include any pricing, discount, sales information, or coupon codes unless the user explicitly asks about them, "
-                "and even then, respond minimally by stating that such details are not available. "
-                "If a user asks for a purchase link, always respond with: 'You can check out the book available at Amazon.' "
-                "Avoid starting responses with casual greetings like 'Hey!' except in the very first interaction. "
-                "Use Chain-of-Thought reasoning to identify the user's intent and filter out unnecessary details before responding. "
-                "Do not reveal any internal chain-of-thought or reasoning in your final responses. "
+                "You are friendly, authentic, and direct in your interactions. " 
+                "Provide a concise explanation of the book's purpose and content when needed. "
+                "Do not include any pricing, discount, or sales information unless explicitly asked. "
+                "Avoid casual greetings after the first interaction. "
                 "Keep your final answer within 50 characters."
             ),
         )
-        self.messages = [system_msg, ]
+
+        self.messages = system_msg
         self.llm_name = llm_name
         self.llm = self._setup_llm()
         self.retriever = retriever
+        
         # Updated QA prompt to include conversation history
         self.qa_prompt_tmpl_str = (
             "Below is context retrieved from our database with specific details about the book. "
-            "Below is the conversation history so far: {conversation_history}\n\n"
-            "Use both the context and the conversation history to answer the user's query. "
-            "Answer strictly based on the context, conversation history, and your inferences, and do not add any extra details. "
-            "Keep the tone friendly, direct, and casual, like chatting on WhatsApp. "
-            "Do not include any pricing, discount, sales information, or coupon codes unless the user explicitly asks about them.\n\n"
             "Context information:\n"
             "---------------------\n"
             "{context}\n"
+            "This is the conversation history so far: {conversation_history}\n\n"
+            "Use both the context and the conversation history to answer the user's query. "
             "---------------------\n\n"
-            "Conversation History:\n"
-            "---------------------\n"
-            "{conversation_history}\n"
-            "---------------------\n\n"
-            "Query: {query}\n"
+            "User Query: {query}\n" 
+            "Answer strictly based on the context, conversation history, and your inferences. "
+            "Keep the tone friendly, direct, and casual. "
+            "Do not include any pricing, discount, or sales information unless explicitly asked.\n\n" 
             "Answer: "
         )
-
+        self.global_context = load_global_context("context_refining_query/global_context_file.txt")
+        print(self.global_context)
+        
+    
     def _setup_llm(self):
         """
         Set up and return the LLM instance.
-        
-        Args:
-             None
-        Returns:
-             LLM: Configured LLM instance.
         """
         return SambaNovaCloud(
             model=self.llm_name,
-            temperature=0.7,
+            temperature=0.4,
             context_window=100000,
         )
-        # Alternatively, you can use Ollama by uncommenting the below code:
+        # Alternatively, to use Ollama, comment above and use below:
         # return Ollama(model=self.llm_name,
         #               temperature=0.7,
         #               context_window=100000,
         #             )
+    
+    def refine_query(self, query: str) -> str:
+        
+        refine_prompt = (
+            "You are an assistant tasked with refining user queries relative to the context provided. "
+            "Below is the global context:\n"
+            "---------------------\n"
+            f"{self.global_context}\n"
+            "---------------------\n\n"
+            "User Query: " + query + "\n\n"
+            "If the user query is not at all relevant to the context, output should be something like: \n"
+            "\"Interesting question, but that's a bit outside my knowledge. Want to know more about LLM Engineer Handbook instead?\"\n\n"
+            "Otherwise, if it is relevant, output a clear and specific query relevant to the context.\n"
+            "DO NOT include any internal chain-of-thought or explanation. Only output the final result.\n\n"
+            "Final Refined Query:"
+        )
+        
+        refined_query_resp = self.llm.complete(refine_prompt)
+
+        if hasattr(refined_query_resp, "text"):
+            refined_query_str = refined_query_resp.text
+        else:
+            refined_query_str = str(refined_query_resp)
+        
+        
+        return refined_query_str.strip()
+
 
     def generate_context(self, query):
         """
-        Retrieve and combine context from the database for the given query.
-        
-        Args:
-             query (str): The user's query.
-        Returns:
-             str: Combined context information.
+        Retrieve and combine context from the database using the (refined) query.
         """
         result = self.retriever.search(query)
         retrieved_docs = [dict(data) for data in result]
         combined_prompt = []
-        # Retrieve up to top 4 documents (if available)
+        # Retrieve up to top 4 documents 
         for doc in retrieved_docs[:4]:
             combined_prompt.append(doc["payload"]["context"])
         return "\n\n---\n\n".join(combined_prompt)
 
     def query(self, query, conversation_history=""):
         """
-        Formulate the query using context and conversation history, then return a streaming LLM response.
-        
-        Args:
-             query (str): The user's query.
-             conversation_history (str): The conversation history to include.
-        Returns:
-             Streaming response: The LLM's response stream.
+        First refine the query, then use the refined version to retrieve context and generate an answer.
         """
-        context = self.generate_context(query=query)
+        refined_query = self.refine_query(query)
+        print(f"Refined Query: {refined_query}")
+        
+        context = self.generate_context(query=refined_query)
         prompt = self.qa_prompt_tmpl_str.format(
             context=context,
-            query=query,
+            query=refined_query,
             conversation_history=conversation_history
         )
+        print(f"context: {context}")
         user_msg = ChatMessage(role=MessageRole.USER, content=prompt)
         streaming_response = self.llm.stream_complete(user_msg.content)
         return streaming_response
@@ -342,41 +282,24 @@ class RAG:
 class Transcribe:
     """
     Class to transcribe audio files with speaker labeling using AssemblyAI.
-    
-    Args:
-         api_key (str): AssemblyAI API key.
-    Returns:
-         None
     """
     def __init__(self, api_key: str):
-        """Initialize the Transcribe class with AssemblyAI API key."""
         aai.settings.api_key = api_key
         self.transcriber = aai.Transcriber()
         
     def transcribe_audio(self, audio_path: str) -> List[Dict[str, str]]:
         """
         Transcribe an audio file and return speaker-labeled transcripts.
-        
-        Args:
-             audio_path (str): Path to the audio file.
-        Returns:
-             List[Dict[str, str]]: List of dictionaries containing speaker and text information.
         """
-        # Configure transcription with speaker labels, expecting 1 speaker for a single-speaker audio
         config = aai.TranscriptionConfig(
             speaker_labels=True,
             speakers_expected=1  
         )
-        
-        # Transcribe the audio
         transcript = self.transcriber.transcribe(audio_path, config=config)
-        
-        # Extract speaker utterances
         speaker_transcripts = []
         for utterance in transcript.utterances:
             speaker_transcripts.append({
                 "speaker": f"Speaker {utterance.speaker}",
                 "text": utterance.text
             })
-            
         return speaker_transcripts
