@@ -126,4 +126,5 @@ if prompt := st.chat_input("Ask about the audio conversation..."):
         final_response = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
         message_placeholder.markdown(final_response)
 
+    # Store the full response in the session state
     st.session_state.messages.append({"role": "assistant", "content": full_response})
