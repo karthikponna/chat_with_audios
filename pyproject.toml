@@ -1,0 +1,18 @@
+[project]
+name = "chat-with-audios"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "assemblyai>=0.44.3",
+    "llama-index>=0.14.2",
+    "llama-index-core>=0.14.2",
+    "llama-index-embeddings-huggingface>=0.6.1",
+    "llama-index-llms-ollama>=0.7.3",
+    "llama-index-llms-sambanovasystems>=0.5.1",
+    "llama-index-vector-stores-qdrant>=0.8.5",
+    "qdrant-client>=1.15.1",
+    "sseclient-py>=1.8.0",
+    "streamlit>=1.49.1",
+]
