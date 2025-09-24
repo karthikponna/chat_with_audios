@@ -17,7 +17,7 @@ class Transcribe:
         """
         config = aai.TranscriptionConfig(
             speaker_labels=True,
-            speakers_expected=1  
+            speakers_expected=2  
         )
         transcript = self.transcriber.transcribe(audio_path, config=config)
         speaker_transcripts = []
