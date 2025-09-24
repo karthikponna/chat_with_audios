@@ -6,8 +6,6 @@ from llama_index.core.base.llms.types import (
     MessageRole,
 )
 
-from file_handling import load_global_context
-
 sambanova_api_key = os.getenv("SAMBANOVA_API_KEY")
 
 SYSTEM_PROMPT = (

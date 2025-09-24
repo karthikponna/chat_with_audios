@@ -7,7 +7,7 @@ import re
 from dotenv import load_dotenv
 import streamlit as st
 
-from src.rag import Retriever, RAG, query
+from src.rag import Retriever, RAG
 from src.audio_transcriber import Transcribe
 from src.database import QdrantVDB_QB
 from src.embed import EmbedData
@@ -97,7 +97,7 @@ if "messages" not in st.session_state:
     reset_chat()
     st.session_state.messages.append({
         "role": "assistant",
-        "content": "Hey, I am Ayush, Would you be available for a quick chat!"
+        "content": "Hey, I am ME, ask me anything about you're audio file"
     })
 
 for message in st.session_state.messages:
