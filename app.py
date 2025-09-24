@@ -7,7 +7,7 @@ import re
 from dotenv import load_dotenv
 import streamlit as st
 
-from src.rag import Retriever, RAG
+from src.rag import Retriever, RAG, query
 from src.audio_transcriber import Transcribe
 from src.database import QdrantVDB_QB
 from src.embed import EmbedData
