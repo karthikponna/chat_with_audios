@@ -40,3 +40,13 @@ This project combines the power of Retrieval-Augmented Generation (RAG) with Ass
 
 ## 🙌 Contributing
 Contributions are welcome! Feel free to open issues or submit pull requests to improve the project.
+
+
+#### NOTES:
+
+docker ps 
+dokcer stop <containerid>
+docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant
+
+Open terminal 2 and run streamlit app.py
+uv run streamlit run app.py

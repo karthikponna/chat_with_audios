@@ -5,8 +5,13 @@ import tempfile
 import base64
 import re
 from dotenv import load_dotenv
-from rag_code import Transcribe, EmbedData, QdrantVDB_QB, Retriever, RAG
 import streamlit as st
+
+from src.rag import Retriever, RAG
+from src.audio_transcriber import Transcribe
+from src.database import QdrantVDB_QB
+from src.embed import EmbedData
+
 
 if "id" not in st.session_state:
     st.session_state.id = uuid.uuid4()
@@ -62,7 +67,7 @@ with st.sidebar:
                     retriever = Retriever(vector_db=qdrant_vdb, embeddata=embeddata)
 
                     # set up rag
-                    query_engine = RAG(retriever=retriever, llm_name="QwQ-32B")
+                    query_engine = RAG(retriever=retriever, llm_name="Qwen3-32B")
                     st.session_state.file_cache[file_key] = query_engine
                 else:
                     query_engine = st.session_state.file_cache[file_key]
@@ -107,6 +112,9 @@ if prompt := st.chat_input("Ask about the audio conversation..."):
     conversation_history = "\n".join(
         f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages
     )
+
+    file_key = list(st.session_state.file_cache.keys())[0] 
+    query_engine = st.session_state.file_cache[file_key]
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()

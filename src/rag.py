@@ -1,138 +1,17 @@
 from qdrant_client import models
-from qdrant_client import QdrantClient
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.sambanovasystems import SambaNovaCloud
 
 from file_handling import load_global_context
-
-import assemblyai as aai
-from typing import List, Dict
-import os
 
 from llama_index.core.base.llms.types import (
     ChatMessage,
     MessageRole,
 )
 
+import os
 
-        
-def batch_iterate(lst, batch_size):
-    """
-    Yield successive n-sized chunks from lst.
-    """
-    for i in range(0, len(lst), batch_size):
-        yield lst[i : i + batch_size]
+sambanova_api_key = os.getenv("SAMBANOVA_API_KEY")
 
-class EmbedData:
-    """
-    Class for generating text embeddings using HuggingFaceEmbedding.
-    """
-    def __init__(self, embed_model_name="BAAI/bge-large-en-v1.5", batch_size=32, chunk_size=200):
-        self.embed_model_name = embed_model_name
-        self.embed_model = self._load_embed_model()
-        self.batch_size = batch_size
-        self.chunk_size = chunk_size  # maximum number of characters per chunk
-        self.embeddings = []
-        
-    def _load_embed_model(self):
-        """
-        Load the HuggingFace embedding model.
-        """
-        embed_model = HuggingFaceEmbedding(
-            model_name=self.embed_model_name, 
-            trust_remote_code=True, 
-            cache_folder='./hf_cache'
-        )
-        return embed_model
-
-    def chunk_text(self, text: str) -> List[str]:
-        """
-        Splits a long text into chunks.
-        """
-        return [text[i:i+self.chunk_size] for i in range(0, len(text), self.chunk_size)]
-        
-    def generate_embedding(self, contexts):
-        """
-        Generate embeddings for a batch of contexts.
-        """
-        return self.embed_model.get_text_embedding_batch(contexts)
-        
-    def embed(self, contexts: List[str]):
-        """
-        Process and embed contexts.
-        """
-        all_contexts = []
-        for context in contexts:
-            if len(context) > self.chunk_size:
-                all_contexts.extend(self.chunk_text(context))
-            else:
-                all_contexts.append(context)
-        self.contexts = all_contexts
-        
-        for batch_context in batch_iterate(self.contexts, self.batch_size):
-            batch_embeddings = self.generate_embedding(batch_context)
-            self.embeddings.extend(batch_embeddings)
-
-class QdrantVDB_QB:
-    """
-    Class to manage Qdrant vector database operations.
-    """
-    def __init__(self, collection_name, vector_dim=768, batch_size=512):
-        self.collection_name = collection_name
-        self.batch_size = batch_size
-        self.vector_dim = vector_dim
-
-    def define_client(self):
-        """
-        Define and initialize the Qdrant client.
-        """
-        self.client = QdrantClient(url="http://localhost:6333", prefer_grpc=True)
-
-    def clear_collection(self):
-        """
-        Clear the collection if it exists.
-        """
-        if self.client.collection_exists(collection_name=self.collection_name):
-            self.client.delete_collection(collection_name=self.collection_name)
-
-    def create_collection(self):
-        """
-        Create a new collection in Qdrant if it doesn't exist.
-        """
-        if not self.client.collection_exists(collection_name=self.collection_name):
-            self.client.create_collection(
-                collection_name=self.collection_name,
-                vectors_config=models.VectorParams(
-                    size=self.vector_dim,
-                    distance=models.Distance.DOT,
-                    on_disk=True
-                ),
-                optimizers_config=models.OptimizersConfigDiff(
-                    default_segment_number=5,
-                    indexing_threshold=0
-                ),
-                quantization_config=models.BinaryQuantization(
-                    binary=models.BinaryQuantizationConfig(always_ram=True)
-                ),
-            )
-
-    def ingest_data(self, embeddata):
-        """
-        Ingest embedding data into the Qdrant collection.
-        """
-        for batch_context, batch_embeddings in zip(
-            batch_iterate(embeddata.contexts, self.batch_size), 
-            batch_iterate(embeddata.embeddings, self.batch_size)
-        ):
-            self.client.upload_collection(
-                collection_name=self.collection_name,
-                vectors=batch_embeddings,
-                payload=[{"context": context} for context in batch_context]
-            )
-        self.client.update_collection(
-            collection_name=self.collection_name,
-            optimizer_config=models.OptimizersConfigDiff(indexing_threshold=20000)
-        )
 
 class Retriever:
     """
@@ -212,6 +91,7 @@ class RAG:
         Set up and return the LLM instance.
         """
         return SambaNovaCloud(
+            api_key = sambanova_api_key,
             model=self.llm_name,
             temperature=0.4,
             context_window=100000,
@@ -279,27 +159,4 @@ class RAG:
         streaming_response = self.llm.stream_complete(user_msg.content)
         return streaming_response
 
-class Transcribe:
-    """
-    Class to transcribe audio files with speaker labeling using AssemblyAI.
-    """
-    def __init__(self, api_key: str):
-        aai.settings.api_key = api_key
-        self.transcriber = aai.Transcriber()
-        
-    def transcribe_audio(self, audio_path: str) -> List[Dict[str, str]]:
-        """
-        Transcribe an audio file and return speaker-labeled transcripts.
-        """
-        config = aai.TranscriptionConfig(
-            speaker_labels=True,
-            speakers_expected=1  
-        )
-        transcript = self.transcriber.transcribe(audio_path, config=config)
-        speaker_transcripts = []
-        for utterance in transcript.utterances:
-            speaker_transcripts.append({
-                "speaker": f"Speaker {utterance.speaker}",
-                "text": utterance.text
-            })
-        return speaker_transcripts
+
