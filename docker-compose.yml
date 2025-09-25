@@ -1,8 +1,33 @@
-version: '3.8'
+version: "3.8"
+
 services:
   qdrant:
-    image: qdrant/qdrant
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
     ports:
-      - "6334:6333"
+      - "6333:6333"   # Qdrant HTTP API (default)
+      - "6334:6334"   # Qdrant gRPC (optional; note: may require config)
     volumes:
-      - ./qdrant_storage:/qdrant/storage
+      - qdrant_storage:/qdrant/storage
+
+  web:
+    build: .
+    container_name: chat_with_audios_app
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      # Load API keys from a local .env via docker-compose --env-file (see commands below)
+      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY}
+      - SAMBANOVA_API_KEY=${SAMBANOVA_API_KEY}
+      # Qdrant host/port — your code should use these or default to environment variables
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+    volumes:
+      - ./:/app
+    depends_on:
+      - qdrant
+
+volumes:
+  qdrant_storage:
