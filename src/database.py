@@ -1,3 +1,4 @@
+import os
 from qdrant_client import QdrantClient
 from qdrant_client import models
 
@@ -17,7 +18,11 @@ class QdrantVDB_QB:
         """
         Define and initialize the Qdrant client.
         """
-        self.client = QdrantClient(url="http://localhost:6333", prefer_grpc=True)
+        qdrant_host = os.getenv("QDRANT_HOST", "localhost")
+        qdrant_port = os.getenv("QDRANT_PORT", "6333")
+        qdrant_url = f"http://{qdrant_host}:{qdrant_port}"
+        
+        self.client = QdrantClient(url=qdrant_url, prefer_grpc=True)
 
     def clear_collection(self):
         """
