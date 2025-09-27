@@ -1,6 +1,7 @@
 # RAG Meets Audio: Chat with Your Recordings via AssemblyAI and DeepSeek R1
 
-[Watch the Demo Video](https://youtu.be/Qmh2p0XFqiQ)
+<video src="https://github.com/user-attachments/assets/c6b474a1-b02f-4ecf-9b52-20ee837e74dc"/></video>
+
 
 [Check out the Blog](https://www.analyticsvidhya.com/blog/2025/03/audio-rag/)
 
