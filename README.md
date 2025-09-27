@@ -29,11 +29,10 @@ brew install uv
 
 # For Windows - Open PowerShell as Administrator and run the below command:
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# For more on installation guide:
+```
+For more on installation guide:
 [More on installing uv](https://docs.astral.sh/uv/getting-started/installation/)
 
-```
 
 # **🎯 Getting Started**
 
