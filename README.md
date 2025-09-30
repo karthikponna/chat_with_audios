@@ -1,11 +1,11 @@
-# RAG Meets Audio: Chat with Your Recordings via AssemblyAI and DeepSeek R1
+# RAG Meets Audio: Chat with Your Recordings via AssemblyAI and Qwen3-32B
 
 <video src="https://github.com/user-attachments/assets/c6b474a1-b02f-4ecf-9b52-20ee837e74dc"/></video>
 
 
 [Check out the Blog](https://www.analyticsvidhya.com/blog/2025/03/audio-rag/)
 
-This project combines the power of Retrieval-Augmented Generation (RAG) with AssemblyAI's transcription capabilities, enabling you to interact with audio recordings as if they were conversational text. By leveraging DeepSeek R1 (or Qwen3-32b) for natural language understanding, this solution efficiently retrieves and answers queries based on your audio content.
+This project combines the power of Retrieval-Augmented Generation (RAG) with AssemblyAI's transcription capabilities, enabling you to interact with audio recordings as if they were conversational text. By leveraging Qwen3-32b for natural language understanding, this solution efficiently retrieves and answers queries based on your audio content.
 
 # 🚀 Features
 - **Audio Transcription** using AssemblyAI for accurate speech-to-text conversion.
