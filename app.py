@@ -97,7 +97,7 @@ if "messages" not in st.session_state:
     reset_chat()
     st.session_state.messages.append({
         "role": "assistant",
-        "content": "Hey! I am Me, ask me anything about you're audio file..."
+        "content": "Hey! ask me anything about you're audio file..."
     })
 
 for message in st.session_state.messages:
