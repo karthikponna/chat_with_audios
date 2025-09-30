@@ -1,7 +1,6 @@
 # RAG Meets Audio: Chat with Your Recordings via AssemblyAI and Qwen3-32B
 
-<video src="https://github.com/user-attachments/assets/c6b474a1-b02f-4ecf-9b52-20ee837e74dc"/></video>
-
+<video src="https://github.com/user-attachments/assets/3590e0cf-9576-4abc-97a7-e2b63274d9c0"/></video>
 
 [Check out the Blog](https://www.analyticsvidhya.com/blog/2025/03/audio-rag/)
 
