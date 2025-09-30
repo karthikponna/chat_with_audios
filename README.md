@@ -85,6 +85,7 @@ docker compose stop
 
 # ⚡️ Running the Code
 
+Run the below command to start the app:
 ```bash
 docker compose up
 ```
